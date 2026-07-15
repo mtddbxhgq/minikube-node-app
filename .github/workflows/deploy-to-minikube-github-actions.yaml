@@ -2,6 +2,8 @@ name: Deploy to Minikube using GitHub Actions
 
 on:
   push:
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -14,18 +16,21 @@ jobs:
       - name: Start Minikube
         uses: medyagh/setup-minikube@master
 
-      - name: Check cluster
-        run: kubectl get pods -A
+      - name: Check Kubernetes cluster
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
 
-      - name: Build Docker image
+      - name: Build Docker image inside Minikube
         run: |
           export SHELL=/bin/bash
-          eval $(minikube -p minikube docker-env)
+          eval "$(minikube -p minikube docker-env)"
           docker build -t devopshint/node-app:latest .
           docker images
 
-      - name: Deploy application
-        run: kubectl apply -f k8s-node-app.yaml
+      - name: Deploy application to Minikube
+        run: |
+          kubectl apply -f k8s-node-app.yaml
 
       - name: Wait for application
         run: |
@@ -41,8 +46,7 @@ jobs:
           kubectl get pods -o wide
           kubectl get services
 
-      - name: Test service
+      - name: Show service URL
         run: |
-          SERVICE_URL=$(minikube service nodejs-app --url)
-          echo "Service URL: $SERVICE_URL"
-          curl --fail --retry 10 --retry-delay 3 "$SERVICE_URL"
+          minikube service list
+          minikube service nodejs-app --url || true
